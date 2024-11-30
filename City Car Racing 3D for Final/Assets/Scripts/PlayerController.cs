@@ -31,8 +31,10 @@ public class PlayerController : MonoBehaviour
     {
         MoveCar();
         CarSteering();
+        ApplyBreaks();
     }
 
+    //Avtomobil harakatini boshqarish
     private void MoveCar()
     {
         frontLeftWheelCollider.motorTorque = presentAcceleration;
@@ -43,6 +45,7 @@ public class PlayerController : MonoBehaviour
         presentAcceleration = accelerationForce * Input.GetAxis("Vertical");
     }
 
+    //Avtomobil old g'ildiraklarini boshqarish
     private void CarSteering()
     {
         presentTurnAngle = wheelsTorque * Input.GetAxis("Horizontal");
@@ -65,4 +68,19 @@ public class PlayerController : MonoBehaviour
         WT.position = position;
         WT.rotation = rotation;
     }
+
+    //Avtomobil tormoz tizimini boshqarish
+    public void ApplyBreaks()
+    {
+        if (Input.GetKey(KeyCode.Space))
+            presentBreakForce = breakingForce;
+        else
+            presentBreakForce = 0f;
+
+        frontLeftWheelCollider.brakeTorque = presentBreakForce;
+        frontRightWheelCollider.brakeTorque = presentBreakForce;
+        backLeftWheelCollider.brakeTorque = presentBreakForce;
+        backRightWheelCollider.brakeTorque = presentBreakForce;
+    }
+
 }
