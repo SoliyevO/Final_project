@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerCarController : MonoBehaviour
 {
     [Header("Wheels collider")]
     public WheelCollider frontLeftWheelCollider;
