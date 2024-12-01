@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerCarController : MonoBehaviour
 {
     [Header("Wheels collider")]
     public WheelCollider frontLeftWheelCollider;
@@ -55,7 +55,7 @@ public class PlayerController : MonoBehaviour
         SteeringWheels(frontLeftWheelCollider, frontLeftWheelTransform);
         SteeringWheels(frontRightWheelCollider, frontRightWheelTransform);
         SteeringWheels(backLeftWheelCollider, backLeftWheelTransform);
-        SteeringWheels(backRightWheelCollider, backRightWheelTransform); 
+        SteeringWheels(backRightWheelCollider, backRightWheelTransform);
     }
 
     void SteeringWheels(WheelCollider WC, Transform WT)

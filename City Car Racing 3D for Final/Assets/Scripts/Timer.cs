@@ -37,6 +37,7 @@ public class Timer : MonoBehaviour
         else if(countDownTimer == 0)
         {
             playerCarController.accelerationForce = 300f;
+
             opponentCar1.movingSpeed = 8f;
             opponentCar2.movingSpeed = 7f;
         }
@@ -49,7 +50,7 @@ public class Timer : MonoBehaviour
         {
             countDownText.text = countDownTimer.ToString();
             yield return new WaitForSeconds(1f);
-            countDownTimer--;
+            countDownTimer --;
         }
         countDownText.text = "GO";
         yield return new WaitForSeconds(1f);
