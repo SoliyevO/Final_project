@@ -26,6 +26,11 @@ public class PlayerCarController : MonoBehaviour
     public float wheelsTorque = 35f;
     private float presentTurnAngle = 0f;
 
+    [Header("Car Sounds")]
+    public AudioSource audioSource;
+    public AudioClip accelerationSound;
+    public AudioClip slowAccelerationSound;
+    public AudioClip sropSound;
 
     private void Update()
     {
@@ -43,6 +48,20 @@ public class PlayerCarController : MonoBehaviour
         backRightWheelCollider.motorTorque = presentAcceleration;
 
         presentAcceleration = accelerationForce * Input.GetAxis("Vertical");
+
+        if (presentAcceleration > 0)
+        {
+            audioSource.PlayOneShot(accelerationSound, 0.2f);
+
+        }
+        else if (presentAcceleration < 0)
+        {
+            audioSource.PlayOneShot(slowAccelerationSound, 0.2f);
+        }
+        else if(presentAcceleration == 0) 
+        {
+            audioSource.PlayOneShot(sropSound, 0.1f);
+        }
     }
 
     //Avtomobil old g'ildiraklarini boshqarish
