@@ -1,0 +1,694 @@
+-----------------------1.2------------------------------------------------------------------
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+
+// LCD1602 I2C manzili odatda 0x27 bo'ladi
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// DHT22 sensor
+#define DHTPIN 2
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  lcd.begin(16,2);
+  lcd.backlight();
+  dht.begin();
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+
+  lcd.clear();
+  
+  if (isnan(temp) || isnan(hum)) {
+    lcd.setCursor(0, 0);
+    lcd.print("Sensor xatosi!");
+    delay(2000);
+    return;
+  }
+
+  lcd.setCursor(0, 0);
+  lcd.print("T: ");
+  lcd.print(temp);
+  lcd.print((char)223); // Gradus belgisi
+  lcd.print("C");
+
+  lcd.setCursor(0, 1);
+  lcd.print("H: ");
+  lcd.print(hum);
+  lcd.print("%");
+
+  delay(2000); // ma'lumotni 2 soniyada yangilash
+
+  // Harorat shartlarini tekshirish
+  if (temp > 30) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("YUQORI HARORAT");
+    delay(2000);
+  } else if (temp < 10) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("PAST HARORAT");
+    delay(2000);
+  }
+}
+
+--------------------1.3---------------------------------------------------------------------
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// WiFi sozlamalari
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+// MQTT broker manzili
+const char* mqtt_server = "broker.hivemq.com";
+
+// PIR sensor GPIO pini
+const int pirPin = 27;
+
+// MQTT ob'ektlari
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// O'zgaruvchilar
+int lastPirState = LOW;
+
+void setup_wifi() {
+  delay(10);
+  Serial.begin(9600);
+  Serial.println();
+  Serial.print("Wi-Fi ga ulanmoqda: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFiga ulandi");
+  Serial.print("IP manzil: ");
+  Serial.println(WiFi.localIP());
+}
+
+// MQTT brokerga qayta ulanish
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT brokerga ulanmoqda...");
+    String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("MQTT brokerga ulandi");
+    } else {
+      Serial.print(" Xatolik, kod: ");
+      Serial.print(client.state());
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  pinMode(pirPin, INPUT);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  int currentPirState = digitalRead(pirPin);
+  if (currentPirState != lastPirState) {
+    if (currentPirState == HIGH) {
+      Serial.println("Yuborildi -> Harakat mavjud");
+      client.publish("iot/pir", "Harakat mavjud");
+    } else {
+      Serial.println("Yuborildi -> Harakat mavjud emas");
+      client.publish("iot/pir", "Harakat mavjud emas");
+    }
+    lastPirState = currentPirState;
+  }
+}
+
+----------------------2.2------------------------------------------------------------------
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// LCD1602 uchun I2C manzil 0x27 bo'lishi mumkin
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// LED pinlar
+const int redLED = 2;
+const int yellowLED = 3;
+const int greenLED = 4;
+
+void setup() {
+  // LED pinlar chiqish sifatida
+  pinMode(redLED, OUTPUT);
+  pinMode(yellowLED, OUTPUT);
+  pinMode(greenLED, OUTPUT);
+
+  // LCD boshlanishi
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Svetafor Tayyor!");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  // Yashil chiroq YONADI
+  digitalWrite(greenLED, HIGH);
+  lcd.setCursor(0, 0);
+  lcd.print("YASHIL: YURING   ");
+  delay(5000);
+
+  // Sariq chiroq 3 marta MILTILLAYDI
+  digitalWrite(greenLED, LOW);
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(yellowLED, HIGH);
+    lcd.setCursor(0, 0);
+    lcd.print("SARIQ: TAYYORLAN");
+    delay(500);
+    digitalWrite(yellowLED, LOW);
+    delay(500);
+  }
+
+  // Qizil chiroq YONADI
+  digitalWrite(redLED, HIGH);
+  lcd.setCursor(0, 0);
+  lcd.print("QIZIL: TO`XTANG ");
+  delay(5000);
+
+  // Sariq chiroq 3 marta MILTILLAYDI yana
+  digitalWrite(redLED, LOW);
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(yellowLED, HIGH);
+    lcd.setCursor(0, 0);
+    lcd.print("SARIQ: TAYYORLAN");
+    delay(500);
+    digitalWrite(yellowLED, LOW);
+    delay(500);
+  }
+
+  // Yana boshidan davom etadi
+}
+------------------------2.3-----------------------------------------------------------------
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <DHT.h>
+
+// Wi-Fi sozlamalari
+const char* ssid = "Wokwi-GUEST";  // WiFi nomi
+const char* password = "";         // WiFi paroli
+
+// MQTT broker manzili
+const char* mqtt_server = "broker.hivemq.com";
+
+// DHT sensor konfiguratsiyasi
+#define DHTPIN 32
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+// MQTT va Wi-Fi obyektlari
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Xabar yuborish intervalli (ms)
+unsigned long lastMsg = 0;
+const long interval = 5000; // 5 soniya
+
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("WiFi ga ulanmoqda: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFiga ulandi");
+  Serial.print("IP manzil: ");
+  Serial.println(WiFi.localIP());
+}
+
+// MQTT brokerga qayta ulanadigan funksiya
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT brokerga ulanmoqda...");
+    String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println(" Ulandi!");
+    } else {
+      Serial.print(" Xatolik, kod: ");
+      Serial.print(client.state());
+      Serial.println(" | 5 soniyadan keyin qayta urinish");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > interval) {
+    lastMsg = now;
+
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+
+    if (isnan(h) || isnan(t)) {
+      Serial.println("Sensor o‘qish xatosi!");
+      return;
+    }
+
+    // Xabar tayyorlash
+    char message[64];
+    snprintf(message, sizeof(message), "Yuborildi -> Namlik: %.1f%%, Harorat: %.1fC", h, t);
+
+    // MQTT ga yuborish
+    client.publish("iot/sensor", message);
+    Serial.println(message);
+  }
+}
+
+-----------------------------3.2------------------------------------------------------------
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// LCD1602 (I2C) adresi odatda 0x27 bo‘ladi
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// HC-SR04 pinlari
+const int trigPin = 9;
+const int echoPin = 10;
+
+void setup() {
+  lcd.begin(16,2);
+  lcd.backlight();
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Ultratovush signali yuborish
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Signaldan qaytish vaqtini o‘lchash
+  long duration = pulseIn(echoPin, HIGH);
+
+  // Masofani sm da hisoblash
+  float distance = duration * 0.034 / 2;
+
+  // LCD tozalash
+  lcd.clear();
+
+  // Masofani LCD ga chiqarish
+  lcd.setCursor(0, 0);
+  lcd.print("Masofa: ");
+  lcd.print(distance, 0);
+  lcd.print(" sm");
+
+  lcd.setCursor(0, 1);
+  if (distance >= 65) {
+    lcd.print("XAVFSIZ MASOFA");
+  } else {
+    lcd.print("XAVFLI MASOFA");
+  }
+
+  delay(1000);
+}
+----------------------------------3.3------------------------------------------------------
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// Wi-Fi sozlamalari
+const char* ssid = "Wokwi-GUEST";  // O'zingizning SSID ni yozing
+const char* password = "";         // Agar kerak bo‘lsa, parolni yozing
+
+// MQTT broker
+const char* mqtt_server = "broker.hivemq.com";
+
+// Potensiometr pin
+const int potPin = 34;  // Analog kirish pin (ESP32 da A0 yo‘q)
+
+// Ob'ektlar
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// Ulash vaqtini tekshirish
+unsigned long lastMsg = 0;
+const long interval = 5000; // 5 soniyada bir marta yuboriladi
+
+// Wi-Fi ulanish funksiyasi
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("WiFiga ulanmoqda: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFiga ulandi");
+  Serial.print("IP manzil: ");
+  Serial.println(WiFi.localIP());
+}
+
+// MQTT brokerga qayta ulanish
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT brokerga ulanmoqda...");
+    String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("MQTT brokerga ulandi");
+    } else {
+      Serial.print("Xatolik, qayta uriniladi. Kod: ");
+      Serial.println(client.state());
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883); // 1883 - standart port
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > interval) {
+    lastMsg = now;
+
+    int potValue = analogRead(potPin); // 0 - 4095 oralig'ida o'qiladi
+    int percentValue = map(potValue, 0, 4095, 0, 100); // 0-100% ga aylantirish
+
+    char msg[50];
+    sprintf(msg, "Yuborildi -> Qiymat - %d", percentValue);
+
+    client.publish("iot/potensiometr", msg);
+    Serial.println(msg);
+  }
+}
+-------------------------4.2--------------------------------------------------------------
+#define LDR_PIN A0         // LDR ulangani analog pin
+#define RELAY_PIN 8        // Rele IN pin
+#define THRESHOLD 500      // Yorug‘lik chegarasi
+
+void setup() {
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW); // Dastlab chiroq o‘chirilgan
+  Serial.begin(9600);
+}
+
+void loop() {
+  int ldrValue = analogRead(LDR_PIN);
+  Serial.print("LDR qiymati: ");
+  Serial.println(ldrValue);
+
+  if (ldrValue >= THRESHOLD) {
+    digitalWrite(RELAY_PIN, HIGH);  // LED yoqiladi
+    Serial.println("LED YONDI");
+  } else {
+    digitalWrite(RELAY_PIN, LOW);   // LED o‘chiriladi
+    Serial.println("LED O‘CHDI");
+  }
+
+  delay(1000); // 1 soniya kutish
+}
+-----------------------------4.3----------------------------------------------------------
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// WiFi sozlamalari
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+// MQTT broker manzili
+const char* mqtt_server = "broker.hivemq.com";
+
+// HC-SR04 pinlari
+const int trigPin = 5;
+const int echoPin = 18;
+
+// Ob'ektlar
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// So'nggi yuborilgan vaqt
+unsigned long lastMsg = 0;
+const long interval = 5000; // 5 soniya
+
+// WiFi ga ulanish funksiyasi
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("WiFiga ulanmoqda: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFiga ulandi");
+  Serial.print("IP manzil: ");
+  Serial.println(WiFi.localIP());
+}
+
+// MQTT brokerga qayta ulanish funksiyasi
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT brokerga ulanmoqda...");
+    String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println(" MQTT brokerga ulandi");
+    } else {
+      Serial.print(" Xatolik. Kod: ");
+      Serial.print(client.state());
+      Serial.println(" 5 soniyadan so'ng qayta urinish...");
+      delay(5000);
+    }
+  }
+}
+
+// Masofa o'lchash funksiyasi
+long getDistanceCM() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH);
+  long distance = duration * 0.034 / 2;
+  return distance;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > interval) {
+    lastMsg = now;
+
+    long distance = getDistanceCM();
+    char msg[50];
+    sprintf(msg, "Yuborildi -> Qiymat – %ldsm", distance);
+    client.publish("iot/distance", msg);
+    Serial.println(msg);
+  }
+}
+----------------------------5.2.----------------------------------------------------------
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// LED pinlari
+const int redLED = 2;
+const int yellowLED = 3;
+const int greenLED = 4;
+
+void setup() {
+  // OLED boshlash
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+
+  // LED pinlar chiqish sifatida
+  pinMode(redLED, OUTPUT);
+  pinMode(yellowLED, OUTPUT);
+  pinMode(greenLED, OUTPUT);
+}
+
+void loop() {
+  // Yashil LED — YURING
+  digitalWrite(greenLED, HIGH);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(redLED, LOW);
+  showMessage("YURING");
+  delay(4000);
+
+  // Sariq LED — KUTING
+  digitalWrite(greenLED, LOW);
+  digitalWrite(yellowLED, HIGH);
+  digitalWrite(redLED, LOW);
+  showMessage("KUTING");
+  delay(2000);
+
+  // Qizil LED — TO‘XTANG
+  digitalWrite(greenLED, LOW);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(redLED, HIGH);
+  showMessage("TO'XTANG");
+  delay(4000);
+}
+
+void showMessage(String message) {
+  display.clearDisplay();
+  display.setCursor(10, 25);
+  display.print(message);
+  display.display();
+}
+------------------------5.3---------------------------------------------------------------
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// Wi-Fi sozlamalari
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+
+// MQTT broker
+const char* mqtt_server = "broker.hivemq.com";
+
+// Pinlar
+const int pirPin = 27;
+const int ldrPin = 35; // A0
+const int relayPin = 26;
+
+// Chegara (LDR)
+const int ldrThreshold = 500;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup_wifi() {
+  delay(10);
+  Serial.begin(115200);
+  Serial.println();
+  Serial.print("WiFiga ulanmoqda: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFiga ulandi");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT brokerga ulanmoqda...");
+    String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("MQTT brokerga ulandi");
+    } else {
+      Serial.print("Xatolik. Kod: ");
+      Serial.print(client.state());
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  pinMode(pirPin, INPUT);
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, LOW);
+
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  int motion = digitalRead(pirPin);
+  int ldrValue = analogRead(ldrPin);
+
+  if (motion == HIGH && ldrValue < ldrThreshold) {
+    digitalWrite(relayPin, HIGH); // Chiroq yoqilsin
+    client.publish("esp32/chiroq", "Yuborildi -> Chiroq yondi");
+    Serial.println("Yuborildi -> Chiroq yondi");
+  } else {
+    digitalWrite(relayPin, LOW); // Chiroq o'chirilsin
+    client.publish("esp32/chiroq", "Yuborildi -> Chiroq o'chdi");
+    Serial.println("Yuborildi -> Chiroq o'chdi");
+  }
+
+  delay(2000); // 2 soniya kutish
+}
+
